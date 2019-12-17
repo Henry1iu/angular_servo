@@ -5,33 +5,17 @@ import threading
 import numpy as np
 import cv2, cv_bridge
 
-import rospy, 
-from std_msgs.msg import 
+import rospy
+from std_msgs.msg import Int32
 from sensor_msgs.msg import Image
 from geometry_msgs.msg import Twist
 
 from lib.pid.pid import PID 
 
-ROS_RATE = 10 	# in Hz
+ROS_RATE = 15 	# in Hz
 MIN_MATCHED_FEATURE = 30
 
 TARGET_POINT = (910, 960) 
-
-def img_callback(msg):
-	global tag_start, tag_reach, img, bridge, msg_lock
-	if msg_lock.acquire(False):
-		if not tag_start:
-			return
-
-		if tag_reach:
-			return
-
-		try:
-			img = bridge.imgmsg_to_cv2(msg, "bgr8")
-			tag_new_img = True
-		except cv_bridge.CvBridgeError as e:
-			return
-		msg_lock.release()
 
 
 tag_start = True
@@ -52,7 +36,7 @@ h, w = ref.shape
 
 img = None
 
-pid = PID(kp=0.05,
+pid = PID(kp=0.003,
 	      ki=0.0,
 	      kd=0.001,
 	      deadband=0.00,
@@ -62,12 +46,31 @@ pid = PID(kp=0.05,
 	      e_int_max=0.0,
 	      dt=0.1)
 
+def img_callback(msg):
+	global tag_start, tag_reach, img, bridge, msg_lock, tag_new_img
+	# if msg_lock.acquire(False):
+	# print("Received image messages!")
+	if True:
+		if not tag_start:
+			return
+
+		if tag_reach:
+			return
+
+		try:
+			img = bridge.imgmsg_to_cv2(msg, "bgr8")
+			tag_new_img = True
+			print("Received new image!")
+		except cv_bridge.CvBridgeError as e:
+			return
+		# msg_lock.release()
+
 node = rospy.init_node("task2_angular_servo")
 rate = rospy.Rate(ROS_RATE)
 
 img_sub = rospy.Subscriber("/usb_cam/raw_img", Image, img_callback)
 
-rot_pub = rospy.Publisher("//yocs_cmd_vel_mux/servoing/cmd_vel", Twist, queue_size=30)
+rot_pub = rospy.Publisher("/yocs_cmd_vel_mux/servoing/cmd_vel", Twist, queue_size=30)
 
 while not rospy.is_shutdown():
 	# do nothing when not start
@@ -92,10 +95,10 @@ while not rospy.is_shutdown():
 		continue
 
 	# process the img only once
-	if msg_lock.acquire(False) and tag_new_img:
+	# if msg_lock.acquire(False) and tag_new_img:
+	if tag_new_img:
 		kp, des = orb.detectAndCompute(img, None)
-		tag_new_img = False
-		msg_lock.release()
+		# msg_lock.release()
 
 		matches = bf.match(des_ref, des)
 		matches = sorted(matches, key = lambda x:x.distance)
@@ -132,16 +135,18 @@ while not rospy.is_shutdown():
 			matchesMask = matchesMask2
 
 		if len(matchesMask) < MIN_MATCHED_FEATURE:
+			print("No enough feature point!")
 			continue
 
 		center_ref = np.float32([[(w-1)/2, (h-1)/2]]).reshape(-1, 1, 2)
 		center = cv2.perspectiveTransform(center_ref, M)
 
-		if center[0,0,0] >= TARGET_POINT[0]:
+		if center[0,0,1] > TARGET_POINT[0]:
 			tag_reach = True
+			print("Reach the target point! Center: ({}, {})".format(center[0,0,0], center[0,0,1]))
 			continue
 
-		distance = center[0,0,1] - TARGET_POINT[1]
+		distance = center[0,0,0] - TARGET_POINT[1]
 		twist = Twist()
 
 		twist.linear.x = 0.1
@@ -153,7 +158,11 @@ while not rospy.is_shutdown():
 		twist.angular.z = pid.PID_CalcOutput(distance)
 
 		rot_pub.publish(twist)
-	else
+		tag_new_img = False
+		print("Publish rotation twist: %f" % twist.angular.z)
+
+	else:
+		# print("No new image received!")
 		continue
 
 	rate.sleep()
