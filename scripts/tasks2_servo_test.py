@@ -5,8 +5,8 @@ import threading
 import numpy as np
 import cv2, cv_bridge
 
-import rospy, 
-from std_msgs.msg import 
+import rospy
+from std_msgs.msg import String
 from sensor_msgs.msg import Image
 from geometry_msgs.msg import Twist
 
@@ -46,7 +46,7 @@ bridge = cv_bridge.CvBridge()
 orb = cv2.ORB_create(edgeThreshold=25, scoreType=cv2.ORB_FAST_SCORE, WTA_K=2, nfeatures=2000)
 bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
 
-ref = cv2.imread("/home/henry/catkin_ws/src/angular_servo/data/ref.jpg", 0)[800:-50, 500:-500]
+ref = cv2.imread("/home/rpai_asrock/bonobot_ws/src/angular_servo/data/ref.jpg", 0)[800:-50, 500:-500]
 kp_ref, des_ref = orb.detectAndCompute(ref, None)
 h, w = ref.shape
 
@@ -67,7 +67,7 @@ rate = rospy.Rate(ROS_RATE)
 
 img_sub = rospy.Subscriber("/usb_cam/raw_img", Image, img_callback)
 
-rot_pub = rospy.Publisher("//yocs_cmd_vel_mux/servoing/cmd_vel", Twist, queue_size=30)
+rot_pub = rospy.Publisher("/yocs_cmd_vel_mux/servoing/cmd_vel", Twist, queue_size=30)
 
 while not rospy.is_shutdown():
 	# do nothing when not start
@@ -76,6 +76,7 @@ while not rospy.is_shutdown():
 
 	# when reach the point, move 30 cycles further and stop
 	if tag_reach:
+		print("Moving Foward!")
 		if reach_countdown != 0:
 			twist = Twist()
 			twist.linear.x = 0.1
@@ -132,12 +133,14 @@ while not rospy.is_shutdown():
 			matchesMask = matchesMask2
 
 		if len(matchesMask) < MIN_MATCHED_FEATURE:
+			print("No Enough Feature Point!")
 			continue
 
 		center_ref = np.float32([[(w-1)/2, (h-1)/2]]).reshape(-1, 1, 2)
 		center = cv2.perspectiveTransform(center_ref, M)
 
 		if center[0,0,0] >= TARGET_POINT[0]:
+			print("Reached the target point!")
 			tag_reach = True
 			continue
 
@@ -153,7 +156,9 @@ while not rospy.is_shutdown():
 		twist.angular.z = pid.PID_CalcOutput(distance)
 
 		rot_pub.publish(twist)
-	else
+		print("Publish rotation twist: %d" % twist.angular.z)
+	else:
+		print("Image was not updated!")
 		continue
 
 	rate.sleep()
