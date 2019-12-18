@@ -37,7 +37,7 @@ h, w = ref.shape
 
 img = None
 
-pid = PID(kp=0.003,
+pid = PID(kp=0.05,
 	      ki=0.0,
 	      kd=0.001,
 	      deadband=0.00,
@@ -157,7 +157,7 @@ while not rospy.is_shutdown():
 
 		twist.angular.x = 0
 		twist.angular.y = 0
-		twist.angular.z = pid.PID_CalcOutput(distance)
+		twist.angular.z = pid.PID_CalcOutput(distance/1920)
 
 		rot_pub.publish(twist)
 		tag_new_img = False
