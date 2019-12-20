@@ -17,7 +17,7 @@ ROS_RATE = 15 	# in Hz
 MIN_MATCHED_FEATURE = 30
 FORWARD_SPEED = 0.06
 
-TARGET_POINT = (935, 780) 
+TARGET_POINT = (935, 780)			# (target_col, target_row)
 
 tag_start = True
 tag_reach = False
@@ -31,7 +31,8 @@ bridge = cv_bridge.CvBridge()
 orb = cv2.ORB_create(edgeThreshold=25, scoreType=cv2.ORB_FAST_SCORE, WTA_K=2, nfeatures=2000)
 bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
 
-ref = cv2.imread("/home/rpai_asrock/bonobot_ws/src/angular_servo/data/ref.jpg", 0)[800:-50, 500:-500]
+ref = cv2.imread("/home/rpai_asrock/bonobot_ws/src/angular_servo/data/ref.jpg", 0)[680:880, 620:1250]
+
 kp_ref, des_ref = orb.detectAndCompute(ref, None)
 h, w = ref.shape
 
@@ -111,6 +112,7 @@ while not rospy.is_shutdown():
 		M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
 		matchesMask = mask.ravel().tolist()
 
+
 		good_matches = []
 		good_src_pts = []
 		good_dst_pts = []
@@ -143,7 +145,7 @@ while not rospy.is_shutdown():
 		center_ref = np.float32([[(w-1)/2, (h-1)/2]]).reshape(-1, 1, 2)
 		center = cv2.perspectiveTransform(center_ref, M)
 
-		if center[0,0,1] > TARGET_POINT[1]:
+		if center[0,0,1] >= TARGET_POINT[1]:
 			tag_reach = True
 			print("Reach the target point! Center: ({}, {})".format(center[0,0,0], center[0,0,1]))
 			continue
@@ -157,8 +159,8 @@ while not rospy.is_shutdown():
 
 		twist.angular.x = 0
 		twist.angular.y = 0
-		twist.angular.z = pid.PID_CalcOutput(distance/1920)
 
+		twist.angular.z = pid.PID_CalcOutput(distance/1920)
 		rot_pub.publish(twist)
 		tag_new_img = False
 		print("Publish rotation twist: linear: %f; angular: %f" % (twist.linear.x, twist.angular.z))
