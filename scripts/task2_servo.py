@@ -16,18 +16,18 @@ from lib.pid.pid import PID
 
 
 ROS_RATE = 30 	# in Hz
-DEFAULT_FORWARD_CYCLE = ROS_RATE * 2
+DEFAULT_FORWARD_CYCLE = ROS_RATE * 4
 MIN_MATCHED_FEATURE = 20
 KP = 0.5
 KD = 0.001
 DEFAULT_FORWARD_SPEED_1 = 0.06
 DEFAULT_FORWARD_SPEED_2 = 0.1
 
-TARGET_POINT = (935, 780)
+TARGET_POINT = (935, 780)		# x(width), y(height)
 
 DRAW_MATCHES = True
 
-GT_IMG_PATH = "/home/henry/catkin_ws/src/angular_servo/data/ref_2.jpg"
+GT_IMG_PATH = "/home/rpai_asrock/bonobot_ws/src/angular_servo/data/ref.jpg"
 DISPLAY_WINDOW_NAME = "Angular Servo"
 
 
@@ -100,13 +100,13 @@ class AngleServo(object):
 		if not self.__activated:
 			return
 
-		img = bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
+		img = self.__bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
 
 		if self.__rotating:								# detect and match features if rotating
-			kp, des = orb.detectAndCompute(img, None)
-
+			kp, des = self.__orb.detectAndCompute(img, None)
+		
 			if len(kp) != 0:
-				matches = self.__bf.match(self.__gt_kp, kp)
+				matches = self.__bf.match(self.__gt_des, des)
 				src_pts = np.float32([ self.__gt_kp[m.queryIdx].pt for m in matches ]).reshape(-1,1,2)
 				dst_pts = np.float32([ kp[m.trainIdx].pt for m in matches ]).reshape(-1,1,2)
 
@@ -141,9 +141,10 @@ class AngleServo(object):
 							           [0, self.__img_h - 1], 
 							           [self.__img_w - 1, self.__img_h - 1], 
 							           [self.__img_w - 1, 0]]).reshape(-1, 1, 2)
-					img = cv2.polylines(img, [np.int32(bbox)], True, 255, 3, cv2.LINE_AA)
-					img = cv2.circle(img, (np.int32(self.__cnt_point[0,0,0]), np.int32(self.__cnt_point[0,0,1])), 5, (255,0,0), 2)
-					img = cv2.circle(img, (np.int32(self._target_point[0]), np.int32(self._target_point[1])), 2, (0,255,0), 2)
+					bbox = cv2.perspectiveTransform(bbox, M)
+					img = cv2.polylines(img, [np.int32(bbox)], True, 255, 5, cv2.LINE_AA)
+					img = cv2.circle(img, (np.int32(self.__cnt_point[0,0,0]), np.int32(self.__cnt_point[0,0,1])), 10, (0,0,255), 4)
+					img = cv2.circle(img, (np.int32(self.__target_point[0]), np.int32(self.__target_point[1])), 10, (0,255,0), 4)
 
 					if DRAW_MATCHES:
 						draw_params = dict(matchColor=(0, 255, 0),
@@ -162,7 +163,8 @@ class AngleServo(object):
 			print("Info: Control point is not valid! Skip this cycle...")
 			return
 
-		if self.__cnt_point[0, 0, 1] - self.__target_point[1]:
+		if self.__cnt_point[0, 0, 1] >= self.__target_point[1]:
+			self.__cnt_point_valid = False			
 			self.__rotating = False
 			self.__forwarding = True
 			print("Info: the target point has been reached! Continue to move forward for 2 seconds...")
@@ -173,7 +175,7 @@ class AngleServo(object):
 
 		twist = Twist()
 		twist.linear.x = DEFAULT_FORWARD_SPEED_1
-		twist.angular.z = self.__pid.PID_CalcOutput(distance/self.__img_w)
+		twist.angular.z = self.__pid.PID_CalcOutput(distance/1920)
 
 		self.__rot_pub.publish(twist)
 		print("Info: New rotation twist has been published! Z: {}".format(twist.angular.z))
@@ -184,6 +186,7 @@ class AngleServo(object):
 
 			twist.linear.x = abs(speed)
 			self.__rot_pub.publish(twist)
+			self.__foward_cycle = self.__foward_cycle - 1
 		else:
 			print("Info: Reached the final destiantion! Feed me next target...")
 			self.__forwarding = False
@@ -204,7 +207,8 @@ class AngleServo(object):
 		while self.__disp_img is None:
 			continue
 
-		self.__gt_img = self.__disp_img
+		self.__gt_img = self.__disp_img[680:880, 620:1250]
+		self.__gt_kp, self.__gt_des = self.__orb.detectAndCompute(self.__gt_img, None)
 		print("Info: New ground truth image has been captured!!!")
 
 	def run(self):

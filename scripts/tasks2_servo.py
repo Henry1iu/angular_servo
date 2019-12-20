@@ -16,8 +16,8 @@ from lib.pid.pid import PID
 
 ROS_RATE = 10 	# in Hz
 
-PKG_ROOT_DIR = os.path.split(os.path.abspath("./"))[0]
-GROUND_TRUTH_IMG_NAME = "ground_truth"
+PKG_ROOT_DIR = "/home/rpai_asrock/bonobot_ws/src/angular_servo"
+GROUND_TRUTH_IMG_NAME = "ref"
 GROUND_TRUTH_IMG_FORMAT = "jpg"
 
 class AngleServo(object):
@@ -42,8 +42,8 @@ class AngleServo(object):
 		self.__orb__ = cv2.ORB_create(edgeThreshold=25, scoreType=cv2.ORB_FAST_SCORE, WTA_K=2, nfeatures=2000)
 		self.__bf__ = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
 		
-		self.__gt_img__ = cv2.imread(os.path.join(PKG_ROOT_DIR, "data/{}}.{}".format(GROUND_TRUTH_IMG_NAME,
-																				 GROUND_TRUTH_IMG_FORMAT)))
+		self.__gt_img__ = cv2.imread(os.path.join(PKG_ROOT_DIR, "data", "{}.{}".format(GROUND_TRUTH_IMG_NAME,
+				   							       ROUND_TRUTH_IMG_FORMAT)))
 		self.__gt_kp__, self.__gt_des__ = self.__orb__.detectAndCompute(self.__gt_img__, None)
 
 		self.__cnt_img__ = None
