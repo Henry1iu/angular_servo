@@ -15,9 +15,9 @@ from lib.pid.pid import PID
 
 ROS_RATE = 15 	# in Hz
 MIN_MATCHED_FEATURE = 30
+FORWARD_SPEED = 0.06
 
-TARGET_POINT = (910, 960) 
-
+TARGET_POINT = (935, 780) 
 
 tag_start = True
 tag_reach = False
@@ -37,7 +37,7 @@ h, w = ref.shape
 
 img = None
 
-pid = PID(kp=0.05,
+pid = PID(kp=0.5,
 	      ki=0.0,
 	      kd=0.001,
 	      deadband=0.00,
@@ -83,7 +83,7 @@ while not rospy.is_shutdown():
 		print("Moving Foward!")
 		if reach_countdown != 0:
 			twist = Twist()
-			twist.linear.x = 0.1
+			twist.linear.x = FORWARD_SPEED
 			twist.linear.y = 0
 			twist.linear.z = 0
 			twist.angular.x = 0
@@ -143,15 +143,15 @@ while not rospy.is_shutdown():
 		center_ref = np.float32([[(w-1)/2, (h-1)/2]]).reshape(-1, 1, 2)
 		center = cv2.perspectiveTransform(center_ref, M)
 
-		if center[0,0,1] > TARGET_POINT[0]:
+		if center[0,0,1] > TARGET_POINT[1]:
 			tag_reach = True
 			print("Reach the target point! Center: ({}, {})".format(center[0,0,0], center[0,0,1]))
 			continue
 
-		distance = center[0,0,0] - TARGET_POINT[1]
+		distance = center[0,0,0] - TARGET_POINT[0]
 		twist = Twist()
 
-		twist.linear.x = 0.1
+		twist.linear.x = FORWARD_SPEED
 		twist.linear.y = 0
 		twist.linear.z = 0
 
@@ -161,7 +161,7 @@ while not rospy.is_shutdown():
 
 		rot_pub.publish(twist)
 		tag_new_img = False
-		print("Publish rotation twist: %f" % twist.angular.z)
+		print("Publish rotation twist: linear: %f; angular: %f" % (twist.linear.x, twist.angular.z))
 
 	else:
 		# print("No new image received!")
