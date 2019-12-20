@@ -6,7 +6,8 @@ import numpy as np
 import cv2, cv_bridge
 
 import rospy
-from std_msgs.msg import Int32
+from std_msgs.msg import String
+
 from sensor_msgs.msg import Image
 from geometry_msgs.msg import Twist
 
@@ -29,7 +30,8 @@ bridge = cv_bridge.CvBridge()
 orb = cv2.ORB_create(edgeThreshold=25, scoreType=cv2.ORB_FAST_SCORE, WTA_K=2, nfeatures=2000)
 bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
 
-ref = cv2.imread("/home/henry/catkin_ws/src/angular_servo/data/ref.jpg", 0)[680:880, 620:1250]
+ref = cv2.imread("/home/rpai_asrock/bonobot_ws/src/angular_servo/data/ref.jpg", 0)[680:880, 620:1250]
+
 kp_ref, des_ref = orb.detectAndCompute(ref, None)
 h, w = ref.shape
 
@@ -78,6 +80,7 @@ while not rospy.is_shutdown():
 
 	# when reach the point, move 30 cycles further and stop
 	if tag_reach:
+		print("Moving Foward!")
 		if reach_countdown != 0:
 			twist = Twist()
 			twist.linear.x = 0.1
@@ -155,8 +158,8 @@ while not rospy.is_shutdown():
 
 		twist.angular.x = 0
 		twist.angular.y = 0
-		twist.angular.z = pid.PID_CalcOutput(-distance/1920)
 
+		twist.angular.z = pid.PID_CalcOutput(distance/1920)
 		rot_pub.publish(twist)
 		tag_new_img = False
 		print("Publish rotation twist: %f" % twist.angular.z)
