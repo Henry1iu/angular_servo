@@ -2,15 +2,19 @@
 # -*- coding: UTF-8 -*-
 
 # import lib
+import time
 import numpy as np
 
 import cv2 
 
 # import ros lib
 import rospy, cv_bridge
+
 from std_msgs.msg import Int8
 from sensor_msgs.msg import Image
 from geometry_msgs.msg import Twist
+
+from std_srvs.srv import SetBool
 
 from lib.pid.pid import PID
 
@@ -22,6 +26,7 @@ KP = 0.5
 KD = 0.001
 DEFAULT_FORWARD_SPEED_1 = - 0.06
 DEFAULT_FORWARD_SPEED_2 = - 0.1
+MAXIMUM_ROTATE_SPEED = 0.10
 
 TARGET_POINT = (935, 780)		# x(width), y(height)
 
@@ -40,12 +45,16 @@ class AngleServo(object):
 		# subscriber
 		self.__img_sub = rospy.Subscriber("/usb_cam/raw_img", Image, self.__img_callback__, queue_size=1, buff_size=6220800)
 		self.__ctr_sub = rospy.Subscriber("/angular_servo/control", Int8, self.__start_callback__)
+		self.__dock_stage = rospy.Subscriber("/dockStage", Int8, self.__dock_callback__)
 
 		# publisher
 		self.__rot_pub = rospy.Publisher("/yocs_cmd_vel_mux/servoing/cmd_vel",Twist, queue_size=1)
 
+		# srv
+		self.__stage_2_done_srv = rospy.ServiceProxy("/dockStage2DoneSrv", SetBool)
+
 		# tag
-		self.__activated = True
+		self.__activated = False
 		self.__rotating = False
 		self.__forwarding = False
 
@@ -86,6 +95,14 @@ class AngleServo(object):
 	# def __reset__(self):
 	# 	self.__start = False
 	# 	self.__reached = False
+
+	def __dock_callback__(self, msg):
+		if not self.__activated:
+			self.__activated = True:
+		else:
+			if msg.data == 2 and not self.__rotating and not self.__forwarding:
+				self.__rotating = True
+
 
 	def __start_callback__(self, msg):
 		if msg.data == 1:
@@ -175,7 +192,7 @@ class AngleServo(object):
 
 		twist = Twist()
 		twist.linear.x = DEFAULT_FORWARD_SPEED_1
-		twist.angular.z = self.__pid.PID_CalcOutput(distance/1920)
+		twist.angular.z = max(self.__pid.PID_CalcOutput(distance/1920), MAXIMUM_ROTATE_SPEED)
 
 		self.__rot_pub.publish(twist)
 		print("Info: New rotation twist has been published! Z: {}".format(twist.angular.z))
@@ -189,6 +206,8 @@ class AngleServo(object):
 			self.__foward_cycle = self.__foward_cycle - 1
 		else:
 			print("Info: Reached the final destiantion! Feed me next target...")
+			self.__stage_2_done_srv(True)
+			time.sleep(1)
 			self.__forwarding = False
 			self.__foward_cycle = DEFAULT_FORWARD_CYCLE
 
