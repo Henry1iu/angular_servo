@@ -51,7 +51,7 @@ class AngleServo(object):
 		self.__rot_pub = rospy.Publisher("/yocs_cmd_vel_mux/servoing/cmd_vel",Twist, queue_size=1)
 
 		# srv
-		self.__stage_2_done_srv = rospy.ServiceProxy("/dockStage2DoneSrv", SetBool)
+		self.__stage_2_done_srv = rospy.ServiceProxy("/dockStage2DoneSrv", SetBool)                                                
 
 		# tag
 		self.__activated = False
@@ -192,7 +192,7 @@ class AngleServo(object):
 
 		twist = Twist()
 		twist.linear.x = DEFAULT_FORWARD_SPEED_1
-		twist.angular.z = max(self.__pid.PID_CalcOutput(distance/1920), MAXIMUM_ROTATE_SPEED)
+		twist.angular.z = min(self.__pid.PID_CalcOutput(distance/1920), MAXIMUM_ROTATE_SPEED)
 
 		self.__rot_pub.publish(twist)
 		print("Info: New rotation twist has been published! Z: {}".format(twist.angular.z))
