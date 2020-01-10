@@ -28,7 +28,7 @@ DEFAULT_FORWARD_SPEED_1 = - 0.06
 DEFAULT_FORWARD_SPEED_2 = - 0.1
 MAXIMUM_ROTATE_SPEED = 0.10
 
-TARGET_POINT = (935, 780)		# x(width), y(height)
+TARGET_POINT = (900, 730)		# x(width), y(height)
 
 DRAW_MATCHES = True
 
@@ -68,7 +68,7 @@ class AngleServo(object):
 								  	nfeatures=2000)
 		self.__bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
 		
-		self.__gt_img = cv2.imread(GT_IMG_PATH, 0)[680:880, 620:1250]
+		self.__gt_img = cv2.imread(GT_IMG_PATH, 0)[620:840, 600:1200]
 		self.__img_h, self.__img_w = self.__gt_img.shape
 		self.__gt_kp, self.__gt_des = self.__orb.detectAndCompute(self.__gt_img, None)
 
