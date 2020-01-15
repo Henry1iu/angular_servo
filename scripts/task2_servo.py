@@ -20,13 +20,13 @@ from lib.pid.pid import PID
 
 
 ROS_RATE = 30 	# in Hz
-DEFAULT_FORWARD_CYCLE = ROS_RATE * 4
+DEFAULT_FORWARD_CYCLE = ROS_RATE * 3
 MIN_MATCHED_FEATURE = 20
 KP = 0.5
 KD = 0.001
-DEFAULT_FORWARD_SPEED_1 = - 0.06
-DEFAULT_FORWARD_SPEED_2 = - 0.1
-MAXIMUM_ROTATE_SPEED = 0.10
+DEFAULT_FORWARD_SPEED_1 = - 0.05
+DEFAULT_FORWARD_SPEED_2 = - 0.15
+MAXIMUM_ROTATE_SPEED = 0.08
 
 TARGET_POINT = (900, 730)		# x(width), y(height)
 
@@ -98,7 +98,7 @@ class AngleServo(object):
 
 	def __dock_callback__(self, msg):
 		if not self.__activated:
-			self.__activated = True:
+			self.__activated = True
 		else:
 			if msg.data == 2 and not self.__rotating and not self.__forwarding:
 				self.__rotating = True
@@ -111,6 +111,10 @@ class AngleServo(object):
 			self.__rotating = True
 		elif msg.data == 3:
 			self.__capture_reference__()
+		elif msg.data == 4:
+			self.__activated = False
+		elif msg.data == 5:
+			self.__rotating = False
 
 	def __img_callback__(self, msg):
 		# Do not process the img msg if not activated
@@ -201,15 +205,15 @@ class AngleServo(object):
 		if self.__foward_cycle != 0:
 			twist = Twist()
 
-			twist.linear.x = abs(speed)
+			twist.linear.x = speed
 			self.__rot_pub.publish(twist)
 			self.__foward_cycle = self.__foward_cycle - 1
 		else:
-			print("Info: Reached the final destiantion! Feed me next target...")
 			self.__stage_2_done_srv(True)
 			time.sleep(1)
 			self.__forwarding = False
 			self.__foward_cycle = DEFAULT_FORWARD_CYCLE
+			print("Info: Reached the final destiantion! Feed me next target...")
 
 	# def __move_backward__(self, speed=0.1):
 	# 	twist = Twist()
