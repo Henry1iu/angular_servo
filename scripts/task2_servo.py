@@ -70,8 +70,9 @@ class AngleServo(object):
 								  	nfeatures=2000)
 		self.__bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
 		
-		self.__gt_img = tone_mapper(cv2.imread(GT_IMG_PATH, 0)[620:840, 600:1200], 90, 0.95)
-		self.__img_h, self.__img_w = self.__gt_img.shape
+		self.__gt_img = tone_mapper(cv2.imread(GT_IMG_PATH)[620:840, 600:1200], 90, 0.95)
+		# print(self.__gt_img.shape)
+		self.__img_h, self.__img_w, _ = self.__gt_img.shape
 		self.__gt_kp, self.__gt_des = self.__orb.detectAndCompute(self.__gt_img, None)
 
 		self.__cnt_point_valid = False
