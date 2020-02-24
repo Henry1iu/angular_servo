@@ -17,6 +17,7 @@ from geometry_msgs.msg import Twist
 from std_srvs.srv import SetBool
 
 from lib.pid.pid import PID
+from tone_mapper import tone_mapper
 
 
 ROS_RATE = 30 	# in Hz
@@ -69,7 +70,7 @@ class AngleServo(object):
 								  	nfeatures=2000)
 		self.__bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
 		
-		self.__gt_img = cv2.imread(GT_IMG_PATH, 0)[620:840, 600:1200]
+		self.__gt_img = tone_mapper(cv2.imread(GT_IMG_PATH, 0)[620:840, 600:1200], 90, 0.95)
 		self.__img_h, self.__img_w = self.__gt_img.shape
 		self.__gt_kp, self.__gt_des = self.__orb.detectAndCompute(self.__gt_img, None)
 
@@ -104,7 +105,6 @@ class AngleServo(object):
 			if msg.data == 2 and not self.__rotating and not self.__forwarding:
 				self.__rotating = True
 
-
 	def __start_callback__(self, msg):
 		if msg.data == 1:
 			self.__activated = True
@@ -122,15 +122,15 @@ class AngleServo(object):
 		if not self.__activated:
 			return
 
-		img = self.__bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
+		img = tone_mapper(self.__bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8'), 90, 0.95)
 
 		if self.__rotating:								# detect and match features if rotating
 			kp, des = self.__orb.detectAndCompute(img, None)
 		
 			if len(kp) != 0:
 				matches = self.__bf.match(self.__gt_des, des)
-				src_pts = np.float32([ self.__gt_kp[m.queryIdx].pt for m in matches ]).reshape(-1,1,2)
-				dst_pts = np.float32([ kp[m.trainIdx].pt for m in matches ]).reshape(-1,1,2)
+				src_pts = np.float32([self.__gt_kp[m.queryIdx].pt for m in matches]).reshape(-1, 1, 2)
+				dst_pts = np.float32([kp[m.trainIdx].pt for m in matches]).reshape(-1, 1, 2)
 
 				M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
 				matchesMask = mask.ravel().tolist()
@@ -139,10 +139,10 @@ class AngleServo(object):
 				# for i in range(len(mask)):
 				# 	if mask[i][0] == 1:
 				# 	    good_matches.append(matches[i])
-				sorted_good_matches = sorted(good_matches, key=lambda x:x.distance)
+				sorted_good_matches = sorted(good_matches, key=lambda x: x.distance)
 
-				perfect_src_pts = np.float32([ self.__gt_kp[m.queryIdx].pt for m in sorted_good_matches ]).reshape(-1,1,2)
-				perfect_dst_pts = np.float32([ kp[m.trainIdx].pt for m in sorted_good_matches ]).reshape(-1,1,2)
+				perfect_src_pts = np.float32([self.__gt_kp[m.queryIdx].pt for m in sorted_good_matches]).reshape(-1, 1, 2)
+				perfect_dst_pts = np.float32([kp[m.trainIdx].pt for m in sorted_good_matches]).reshape(-1, 1, 2)
 
 				try:
 					M2, mask2 = cv2.findHomography(perfect_src_pts, perfect_dst_pts, cv2.RANSAC,5.0)
